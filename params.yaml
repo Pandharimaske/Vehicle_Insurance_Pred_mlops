@@ -1,0 +1,10 @@
+optuna:
+  n_trials: 50
+  sampler: TPE
+
+model:
+  auc_promotion_gate: 0.005
+  expected_min_f1: 0.6
+
+data:
+  train_test_split_ratio: 0.25

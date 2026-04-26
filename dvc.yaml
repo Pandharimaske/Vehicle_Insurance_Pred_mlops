@@ -1,0 +1,117 @@
+stages:
+
+  # ── Stage 1: Pull data from MongoDB and split into train/test CSVs ──────────
+  data_ingestion:
+    cmd: python -c "
+      from src.pipline.training_pipeline import TrainPipeline;
+      tp = TrainPipeline();
+      tp.start_data_ingestion()
+    "
+    deps:
+      - src/components/data_ingestion.py
+      - src/data_access/proj1_data.py
+    outs:
+      - artifact/data_ingestion
+
+  # ── Stage 2: Validate column count and schema against config/schema.yaml ────
+  data_validation:
+    cmd: python -c "
+      from src.pipline.training_pipeline import TrainPipeline;
+      from src.entity.config_entity import DataIngestionConfig;
+      from src.entity.artifact_entity import DataIngestionArtifact;
+      import os, glob;
+      base = sorted(glob.glob('artifact/data_ingestion/*'))[-1];
+      artifact = DataIngestionArtifact(
+        trained_file_path=os.path.join(base,'ingested/train.csv'),
+        test_file_path=os.path.join(base,'ingested/test.csv'));
+      tp = TrainPipeline();
+      tp.start_data_validation(data_ingestion_artifact=artifact)
+    "
+    deps:
+      - src/components/data_validation.py
+      - config/schema.yaml
+      - artifact/data_ingestion
+    outs:
+      - artifact/data_validation
+
+  # ── Stage 3: Feature engineering + scaling + SMOTEENN resampling ─────────────
+  data_transformation:
+    cmd: python -c "
+      from src.pipline.training_pipeline import TrainPipeline;
+      from src.entity.artifact_entity import DataIngestionArtifact, DataValidationArtifact;
+      import os, glob, json;
+      ing_base = sorted(glob.glob('artifact/data_ingestion/*'))[-1];
+      val_base  = sorted(glob.glob('artifact/data_validation/*'))[-1];
+      ing_art = DataIngestionArtifact(
+        trained_file_path=os.path.join(ing_base,'ingested/train.csv'),
+        test_file_path=os.path.join(ing_base,'ingested/test.csv'));
+      report = json.load(open(os.path.join(val_base,'report.yaml')));
+      val_art = DataValidationArtifact(
+        validation_status=report.get('validation_status', True),
+        message=report.get('message',''),
+        validation_report_file_path=os.path.join(val_base,'report.yaml'));
+      tp = TrainPipeline();
+      tp.start_data_transformation(ing_art, val_art)
+    "
+    deps:
+      - src/components/data_transformation.py
+      - config/schema.yaml
+      - artifact/data_ingestion
+      - artifact/data_validation
+    outs:
+      - artifact/data_transformation
+
+  # ── Stage 4: Optuna HPO (50 trials, TPE) → XGBoost / LightGBM + SHAP ───────
+  model_trainer:
+    cmd: python -c "
+      from src.pipline.training_pipeline import TrainPipeline;
+      from src.entity.artifact_entity import DataTransformationArtifact;
+      import os, glob;
+      base = sorted(glob.glob('artifact/data_transformation/*'))[-1];
+      art = DataTransformationArtifact(
+        transformed_object_file_path=os.path.join(base,'transformed_object/preprocessing.pkl'),
+        transformed_train_file_path=os.path.join(base,'transformed/train.npy'),
+        transformed_test_file_path=os.path.join(base,'transformed/test.npy'));
+      tp = TrainPipeline();
+      tp.start_model_trainer(art)
+    "
+    deps:
+      - src/components/model_trainer.py
+      - artifact/data_transformation
+    params:
+      - params.yaml:
+          - optuna.n_trials
+          - optuna.sampler
+          - model.auc_promotion_gate
+    outs:
+      - artifact/model_trainer
+    metrics:
+      - artifact/model_trainer/metrics.json:
+          cache: false
+
+  # ── Stage 5: Champion/challenger AUC gate → MLflow registry promotion ────────
+  model_evaluation:
+    cmd: python -c "
+      from src.pipline.training_pipeline import TrainPipeline;
+      from src.entity.artifact_entity import (
+        DataIngestionArtifact, ModelTrainerArtifact, ClassificationMetricArtifact);
+      import os, glob, json;
+      ing_base = sorted(glob.glob('artifact/data_ingestion/*'))[-1];
+      ing_art = DataIngestionArtifact(
+        trained_file_path=os.path.join(ing_base,'ingested/train.csv'),
+        test_file_path=os.path.join(ing_base,'ingested/test.csv'));
+      mt_base = sorted(glob.glob('artifact/model_trainer/*'))[-1];
+      metrics = json.load(open(os.path.join(mt_base,'metrics.json')));
+      mt_art = ModelTrainerArtifact(
+        trained_model_file_path=os.path.join(mt_base,'trained_model/model.pkl'),
+        metric_artifact=ClassificationMetricArtifact(**metrics));
+      tp = TrainPipeline();
+      tp.start_model_evaluation(ing_art, mt_art)
+    "
+    deps:
+      - src/components/model_evaluation.py
+      - artifact/data_ingestion
+      - artifact/model_trainer
+    params:
+      - params.yaml:
+          - model.auc_promotion_gate

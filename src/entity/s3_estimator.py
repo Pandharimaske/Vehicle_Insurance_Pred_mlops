@@ -53,7 +53,7 @@ class Proj1Estimator:
             raise MyException(e, sys)
 
 
-    def predict(self,dataframe:DataFrame):
+    def predict(self, dataframe: DataFrame):
         """
         :param dataframe:
         :return:
@@ -62,5 +62,18 @@ class Proj1Estimator:
             if self.loaded_model is None:
                 self.loaded_model = self.load_model()
             return self.loaded_model.predict(dataframe=dataframe)
+        except Exception as e:
+            raise MyException(e, sys)
+
+    def predict_proba(self, dataframe: DataFrame):
+        """
+        Returns class probability estimates for confidence scoring.
+        :param dataframe:
+        :return: array of shape (n_samples, 2)
+        """
+        try:
+            if self.loaded_model is None:
+                self.loaded_model = self.load_model()
+            return self.loaded_model.predict_proba(dataframe=dataframe)
         except Exception as e:
             raise MyException(e, sys)

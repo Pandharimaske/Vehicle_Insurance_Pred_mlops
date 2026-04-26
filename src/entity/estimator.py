@@ -33,18 +33,26 @@ class MyModel:
         """
         try:
             logging.info("Starting prediction process.")
-
-            # Step 1: Apply scaling transformations using the pre-trained preprocessing object
             transformed_feature = self.preprocessing_object.transform(dataframe)
-
-            # Step 2: Perform prediction using the trained model
             logging.info("Using the trained model to get predictions")
             predictions = self.trained_model_object.predict(transformed_feature)
-
             return predictions
-
         except Exception as e:
             logging.error("Error occurred in predict method", exc_info=True)
+            raise MyException(e, sys) from e
+
+    def predict_proba(self, dataframe: pd.DataFrame) -> DataFrame:
+        """
+        Returns probability estimates for both classes.
+        Used by the /predict JSON endpoint to return a confidence score.
+        """
+        try:
+            logging.info("Starting predict_proba process.")
+            transformed_feature = self.preprocessing_object.transform(dataframe)
+            probabilities = self.trained_model_object.predict_proba(transformed_feature)
+            return probabilities
+        except Exception as e:
+            logging.error("Error occurred in predict_proba method", exc_info=True)
             raise MyException(e, sys) from e
 
 

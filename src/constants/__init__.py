@@ -73,3 +73,20 @@ MODEL_PUSHER_S3_KEY = "model-registry"
 
 APP_HOST = "0.0.0.0"
 APP_PORT = 8000
+
+"""
+MLflow / DagsHub tracking constants
+"""
+MLFLOW_EXPERIMENT_NAME: str = "vehicle_insurance_claim_prediction"
+MLFLOW_MODEL_NAME: str = "vehicle_insurance_model"
+# AUC-ROC must improve by at least this delta to auto-promote challenger → Production
+AUC_PROMOTION_GATE: float = 0.005
+# DagsHub repo info — override with env vars DAGSHUB_REPO_OWNER / DAGSHUB_REPO_NAME
+DAGSHUB_REPO_OWNER: str = ""
+DAGSHUB_REPO_NAME: str = ""
+
+"""
+Optuna HPO constants
+"""
+OPTUNA_N_TRIALS: int = 50
+OPTUNA_SAMPLER: str = "TPE"

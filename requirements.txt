@@ -18,4 +18,21 @@ python-multipart
 uvicorn
 jinja2
 imblearn
+
+# Bullet 1 — XGBoost + LightGBM + Optuna HPO
+xgboost>=2.0.0
+lightgbm>=4.0.0
+optuna>=3.4.0
+
+# Bullet 2 — MLflow experiment tracking + DagsHub + DVC
+mlflow>=2.10.0
+dagshub>=0.3.8
+dvc>=3.40.0
+
+# Bullet 3 — SHAP explainability
+shap>=0.44.0
+
+# Bullet 4 — Pydantic input validation (already bundled with FastAPI, explicit pin)
+pydantic>=2.0.0
+
 -e .
